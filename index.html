@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dutch Mortgage and Interests Deduction Calculator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { 
+      --bg:#0a0b0f; 
+      --card:#1a1d26; 
+      --text:#f8fafc; 
+      --muted:#94a3b8; 
+      --accent:#3b82f6; 
+      --accent-light:#60a5fa; 
+      --good:#10b981; 
+      --bad:#ef4444; 
+      --border:#334155;
+      --input-bg:#0f172a;
+      --gradient-start:#0a0b0f;
+      --gradient-end:#1e293b;
+    }
+    * { box-sizing: border-box; }
+    body { 
+      margin:0; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', 'Helvetica Neue', Arial, sans-serif; 
+      background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%); 
+      color:var(--text); 
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1200px; margin: 32px auto; padding: 0 24px 48px; }
+    h1 { font-size: 28px; margin: 0 0 24px; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(135deg, var(--text) 0%, var(--accent-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grid { display:grid; grid-template-columns: 380px 1fr; gap: 24px; }
+    @media (max-width: 1024px){ .grid{ grid-template-columns: 1fr; } }
+    .card { 
+      background: rgba(26,29,38,.95); 
+      border: 1px solid var(--border); 
+      border-radius: 20px; 
+      padding: 24px; 
+      box-shadow: 0 20px 40px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05); 
+      backdrop-filter: blur(10px);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 25px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.08);
+    }
+    .card h2 { font-size: 15px; margin: 0 0 16px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+    label { display:block; font-size: 13px; color: var(--muted); margin: 16px 0 8px; font-weight: 500; }
+    input, select { 
+      width: 100%; 
+      padding: 12px 16px; 
+      border-radius: 12px; 
+      border: 1px solid var(--border);
+      background: var(--input-bg); 
+      color: var(--text); 
+      outline: none; 
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    input:focus, select:focus { 
+      border-color: var(--accent); 
+      box-shadow: 0 0 0 3px rgba(59,130,246,.15), 0 0 20px rgba(59,130,246,.1); 
+      background: rgba(15,23,42,.8);
+    }
+    input:hover, select:hover {
+      border-color: rgba(59,130,246,.4);
+    }
+    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btns { display:flex; gap:12px; margin-top: 20px; }
+    button { 
+      flex:1; 
+      padding: 14px 20px; 
+      border-radius: 14px; 
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--accent) 0%, rgba(59,130,246,.8) 100%); 
+      color: white; 
+      cursor:pointer; 
+      font-weight: 600; 
+      font-size: 14px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(59,130,246,.3);
+    }
+    button.secondary { 
+      background: var(--input-bg); 
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    button:hover { 
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(59,130,246,.4);
+    }
+    button.secondary:hover {
+      background: rgba(15,23,42,.9);
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .kpiGrid { display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    @media (max-width: 1024px){ .kpiGrid{ grid-template-columns: repeat(2, 1fr); } }
+    .kpi { 
+      background: linear-gradient(135deg, rgba(59,130,246,.08) 0%, rgba(59,130,246,.04) 100%); 
+      border: 1px solid var(--border); 
+      border-radius: 16px; 
+      padding: 16px; 
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);
+      opacity: 0.8;
+    }
+    .kpi:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(59,130,246,.15);
+      border-color: rgba(59,130,246,.3);
+    }
+    .kpi .t { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+    .kpi .v { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+    .kpi .s { font-size: 11px; color: var(--muted); margin-top: 6px; opacity: 0.8; }
+    .split { display:grid; grid-template-columns: 1.15fr .85fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 1024px){ .split{ grid-template-columns: 1fr; } }
+    canvas { 
+      width: 100%; 
+      height: 260px; 
+      background: linear-gradient(135deg, rgba(15,23,42,.6) 0%, rgba(15,23,42,.4) 100%); 
+      border: 1px solid var(--border); 
+      border-radius: 16px; 
+      box-shadow: inset 0 2px 8px rgba(0,0,0,.2);
+    }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; border: 1px solid var(--border); }
+    th, td { padding: 12px 14px; font-size: 12px; border-bottom: 1px solid var(--border); }
+    th { 
+      text-align: left; 
+      color: var(--muted); 
+      font-weight: 600; 
+      position: sticky; 
+      top:0; 
+      background: rgba(26,29,38,.95); 
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+      font-size: 13px;
+    }
+    tr.stay { 
+      outline: 2px solid var(--accent); 
+      outline-offset: -2px; 
+      background: linear-gradient(135deg, rgba(59,130,246,.1) 0%, rgba(59,130,246,.05) 100%); 
+    }
+    .note { color: var(--muted); font-size: 12px; line-height: 1.5; opacity: 0.9; }
+    .pill { 
+      display:inline-block; 
+      padding: 4px 10px; 
+      border-radius: 999px; 
+      font-size: 11px; 
+      border:1px solid var(--border); 
+      background: linear-gradient(135deg, rgba(59,130,246,.1) 0%, rgba(59,130,246,.05) 100%); 
+      color: var(--accent-light); 
+      font-weight: 500;
+    }
+    .good { color: var(--good); font-weight: 600; }
+    .bad { color: var(--bad); font-weight: 600; }
+    .mono { 
+      font-variant-numeric: tabular-nums; 
+      font-feature-settings: "tnum"; 
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    }
+    
+    /* Smooth animations and transitions */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card {
+      animation: fadeIn 0.6s ease-out;
+    }
+    
+    .card:nth-child(2) {
+      animation-delay: 0.1s;
+    }
+    
+    .kpi {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    .kpi:nth-child(1) { animation-delay: 0.1s; }
+    .kpi:nth-child(2) { animation-delay: 0.15s; }
+    .kpi:nth-child(3) { animation-delay: 0.2s; }
+    .kpi:nth-child(4) { animation-delay: 0.25s; }
+    
+    /* Smooth scroll for table */
+    .scroll-container {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    
+    .scroll-container::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    .scroll-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .scroll-container::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+    
+    .scroll-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(59,130,246,.5);
+    }
+
+    .chartClickable {
+      cursor: zoom-in;
+    }
+
+    .modalOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 9999;
+    }
+
+    .modalOverlay.open {
+      display: flex;
+    }
+
+    .modalCard {
+      width: min(1200px, 96vw);
+      height: min(80vh, 720px);
+      background: rgba(26,29,38,.98);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modalHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modalHeader .title {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .modalClose {
+      width: auto;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: none;
+      flex: 0 0 auto;
+    }
+
+    .modalClose:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(0,0,0,.25);
+    }
+
+    .modalBody {
+      padding: 14px;
+      flex: 1;
+      display: flex;
+    }
+
+    .modalBody canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .chartTooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(26,29,38,.95);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text);
+      box-shadow: 0 4px 12px rgba(0,0,0,.4);
+      z-index: 10000;
+      white-space: nowrap;
+      display: none;
+    }
+
+    .chartTooltip.visible {
+      display: block;
+    }
+
+    .chartTooltip .ttLabel {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .chartTooltip .ttValue {
+      font-weight: 600;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dutch Mortgage and Interests Deduction Calculator</h1>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Parameters</h2>
+
+      <label>Mortgage amount (€)</label>
+      <input id="principal" type="number" min="0" step="1000" value="400000" />
+
+      <div class="row2">
+        <div>
+          <label>Interest rate (% / year)</label>
+          <input id="rate" type="number" min="0" step="0.01" value="4" />
+        </div>
+        <div>
+          <label>Term (years)</label>
+          <input id="term" type="number" min="1" step="1" value="30" />
+        </div>
+      </div>
+
+      <label>Mortgage type</label>
+      <select id="mortType">
+        <option value="annuity" selected>Annuity</option>
+        <option value="linear">Linear (constant principal)</option>
+        <option value="interestOnly">Interest-only (no repayment)</option>
+      </select>
+
+      <div class="row2">
+        <div>
+          <label>Tax deduction years</label>
+          <input id="dedYears" type="number" min="0" step="1" value="5" />
+        </div>
+        <div>
+          <label>WOZ value (€)</label>
+          <input id="woz" type="number" min="0" step="1000" value="400000" />
+        </div>
+      </div>
+
+      <label>Eigenwoningforfait (% of WOZ / year)</label>
+      <input id="forfaitRate" type="number" min="0" step="0.01" value="0.35" />
+
+      <label>Gross income (€ / year) (optional, for reference only)</label>
+      <input id="income" type="number" min="0" step="1000" value="50000" />
+
+      <label>How many years will you stay?</label>
+      <input id="stayYears" type="number" min="1" step="1" value="7" />
+
+      <label>Expected inflation rate (% / year)</label>
+      <input id="inflation" type="number" min="0" max="20" step="0.1" value="2" />
+
+      <h2 style="margin-top:14px;">Other monthly costs</h2>
+      <div class="row2">
+        <div>
+          <label>VvE (€ / month)</label>
+          <input id="vve" type="number" min="0" step="1" value="200" />
+        </div>
+        <div>
+          <label>OZB (€ / month)</label>
+          <input id="ozb" type="number" min="0" step="1" />
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label>Insurance (€ / month)</label>
+          <input id="ins" type="number" min="0" step="1" />
+        </div>
+        <div>
+          <label>Maintenance reserve (€ / month)</label>
+          <input id="maint" type="number" min="0" step="1" />
+        </div>
+      </div>
+
+      <h2 style="margin-top:14px;">Utilities</h2>
+      <label>Utilities (gas/electricity/water) (€ / month)</label>
+      <input id="utils" type="number" min="0" step="1" value="150" />
+
+      <label>Leasehold / canon (€ / month)</label>
+      <input id="canon" type="number" min="0" step="1" value="0" />
+
+      <div class="btns">
+        <button id="calcBtn">Recalculate</button>
+        <button class="secondary" id="resetBtn">Reset defaults</button>
+      </div>
+
+      <p class="note" style="margin-top:10px;">
+        Notes: This is an <span class="pill">estimate</span>. It ignores inflation, WOZ/box-1 eigenwoningforfait, rate resets, and any buy/sell transaction costs.
+        It models deduction as a simple % of (interest + canon) for the first N years.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Monthly overview</h2>
+
+      <div class="kpiGrid">
+        <div class="kpi">
+          <div class="t">Mortgage payment (month 1)</div>
+          <div class="v mono" id="kpiPay">—</div>
+          <div class="s">Type-dependent</div>
+        </div>
+        <div class="kpi">
+          <div class="t">All-in gross outflow (month 1)</div>
+          <div class="v mono" id="kpiGross">—</div>
+          <div class="s">Mortgage + other costs</div>
+        </div>
+        <div class="kpi">
+          <div class="t">Tax benefit (month 1)</div>
+          <div class="v mono" id="kpiTax">—</div>
+          <div class="s">Only during deduction years</div>
+        </div>
+        <div class="kpi">
+          <div class="t">All-in net cost (month 1)</div>
+          <div class="v mono" id="kpiNet">—</div>
+          <div class="s">Gross − tax benefit</div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div>
+          <h2 style="margin-top:12px;">30-year net monthly cost path</h2>
+          <div style="height: 160px;"><canvas id="chart" class="chartClickable" aria-label="Net monthly cost chart"></canvas></div>
+          <p class="note" style="margin:8px 0 0;">
+            Line shows <span class="pill">net monthly outflow</span> (mortgage + other costs − tax benefit).
+          </p>
+          <h2 style="margin-top:16px;">Inflation-adjusted monthly cost</h2>
+          <div style="height: 160px;"><canvas id="chartInflation" class="chartClickable" aria-label="Inflation-adjusted monthly cost chart"></canvas></div>
+          <p class="note" style="margin:8px 0 0;">
+            Shows net outflow in <span class="pill">today's euros</span> (discounted by inflation).
+          </p>
+        </div>
+
+        <div>
+          <h2 style="margin-top:12px;">Stay summary</h2>
+          <div class="kpi" style="margin-bottom:10px;">
+            <div class="t">Total net cash outflow during stay</div>
+            <div class="v mono" id="stayOutflow">—</div>
+            <div class="s">Net monthly outflow × months</div>
+          </div>
+          <div class="kpi" style="margin-bottom:10px;">
+            <div class="t">Principal repaid (equity built)</div>
+            <div class="v mono" id="stayEquity">—</div>
+            <div class="s">Reduction in mortgage balance</div>
+          </div>
+          <div class="kpi">
+            <div class="t">Interest paid (true cost)</div>
+            <div class="v mono" id="stayInterest">—</div>
+            <div class="s">Interest portion only</div>
+          </div>
+          <p class="note" style="margin-top:10px;">
+            Equity built is not “spent”; it becomes value in the property (ignoring price changes).
+          </p>
+        </div>
+      </div>
+
+      <h2 style="margin-top:12px;">Yearly summary (30 years)</h2>
+      <div class="scroll-container" style="max-height: 360px; overflow:auto; border-radius:16px; border:1px solid var(--border);">
+        <table>
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Beg. balance</th>
+              <th>End balance</th>
+              <th>Payment</th>
+              <th>Interest</th>
+              <th>Principal</th>
+              <th>Tax benefit</th>
+              <th>Net outflow</th>
+            </tr>
+          </thead>
+          <tbody id="yearlyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="chartModal" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Enlarged chart">
+  <div class="modalCard">
+    <div class="modalHeader">
+      <div class="title">30-year net monthly cost path</div>
+      <button id="chartModalClose" class="modalClose" type="button">Close</button>
+    </div>
+    <div class="modalBody" style="position:relative;">
+      <canvas id="chartLarge" aria-label="Net monthly cost chart (large)"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="inflationModal" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Enlarged inflation-adjusted chart">
+  <div class="modalCard">
+    <div class="modalHeader">
+      <div class="title">Inflation-adjusted monthly cost (today's euros)</div>
+      <button id="inflationModalClose" class="modalClose" type="button">Close</button>
+    </div>
+    <div class="modalBody" style="position:relative;">
+      <canvas id="chartInflationLarge" aria-label="Inflation-adjusted monthly cost chart (large)"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --------- Helpers ----------
+  const fmtEUR = (x) => {
+    if (!isFinite(x)) return "—";
+    return x.toLocaleString(undefined, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  };
+  const fmtEUR2 = (x) => {
+    if (!isFinite(x)) return "—";
+    return x.toLocaleString(undefined, { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
+  };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // Compute fixed annuity monthly payment
+  function annuityPayment(P, rMonthly, n) {
+    if (n <= 0) return 0;
+    if (rMonthly === 0) return P / n;
+    const pow = Math.pow(1 + rMonthly, n);
+    return P * (rMonthly * pow) / (pow - 1);
+  }
+
+  // Build monthly schedule, return arrays and yearly aggregates
+  function buildSchedule(params) {
+    const {
+      principal, rateAnnual, termYears, type,
+      dedYears, incomeAnnual, wozValue, forfaitRateAnnual,
+      otherMonthly, canonMonthly, inflationRate
+    } = params;
+
+    const n = Math.round(termYears * 12);
+    const r = rateAnnual / 100 / 12;
+    const dedMonths = Math.round(dedYears * 12);
+
+    const clamp0 = (x) => Math.max(0, x);
+
+    // Dutch Box 1 tax brackets (2024)
+    const b1 = 39357;
+    const b2 = 79137;
+    const r1 = 0.357;   // 35.7%
+    const r2 = 0.3756;  // 37.56%
+    const r3 = 0.495;   // 49.5%
+    const DEDUCTION_CAP = 0.3756; // ~37.56% statutory max deduction rate for 2025
+
+    function taxBox1_Annual(income) {
+      const inc = clamp0(Number(income) || 0);
+      const part1 = Math.min(inc, b1);
+      const part2 = Math.min(Math.max(inc - b1, 0), b2 - b1);
+      const part3 = Math.max(inc - b2, 0);
+      return part1 * r1 + part2 * r2 + part3 * r3;
+    }
+
+    // Get marginal tax rate for a given income
+    function getMarginalRate(income) {
+      const inc = clamp0(Number(income) || 0);
+      if (inc <= b1) return r1;
+      if (inc <= b2) return r2;
+      return r3;
+    }
+
+    let bal = principal;
+    let payFixed = 0;
+
+    if (type === "annuity") payFixed = annuityPayment(principal, r, n);
+    if (type === "interestOnly") payFixed = principal * r;
+
+    const interestByYear = new Array(termYears).fill(0);
+    const rows = [];
+
+    for (let m = 1; m <= n; m++) {
+      const interest = bal * r;
+
+      let payment = 0;
+      let principalPaid = 0;
+
+      if (type === "annuity") {
+        payment = payFixed;
+        principalPaid = payment - interest;
+        // numerical safety
+        if (principalPaid > bal) principalPaid = bal;
+      } else if (type === "linear") {
+        principalPaid = principal / n;
+        if (principalPaid > bal) principalPaid = bal;
+        payment = interest + principalPaid;
+      } else { // interestOnly
+        payment = payFixed;
+        principalPaid = 0;
+      }
+
+      const balEnd = bal - principalPaid;
+
+      const yearIdx = Math.min(termYears - 1, Math.floor((m - 1) / 12));
+      interestByYear[yearIdx] += interest;
+
+      const grossOutflow = payment + otherMonthly + canonMonthly;
+      const netOutflow = grossOutflow;
+
+      // Inflation discount factor: value in today's euros
+      // Monthly inflation rate from annual
+      const monthlyInflation = Math.pow(1 + (inflationRate || 0), 1/12) - 1;
+      const discountFactor = Math.pow(1 + monthlyInflation, m - 1);
+
+      rows.push({
+        m,
+        balBeg: bal,
+        balEnd,
+        payment,
+        interest,
+        principal: principalPaid,
+        taxBenefit: 0,
+        grossOutflow,
+        netOutflow,
+        netOutflowReal: netOutflow / discountFactor
+      });
+
+      bal = balEnd;
+      if (bal <= 0.00001) break;
+    }
+
+    // Apply mortgage interest deduction per year, distribute monthly.
+    // Logic: tax_benefit = deductible_amount × min(marginal_tax_rate, deduction_cap)
+    // Deductible = interest + canon - eigenwoningforfait (if modeled)
+    const forfaitAnnual = clamp0(Number(wozValue) || 0) * (clamp0(Number(forfaitRateAnnual) || 0) / 100);
+    const baseTax = taxBox1_Annual(incomeAnnual);
+    const marginalRate = getMarginalRate(incomeAnnual);
+    const effectiveDeductionRate = Math.min(marginalRate, DEDUCTION_CAP);
+
+    for (let y = 0; y < termYears; y++) {
+      const monthStart = y * 12;
+      const monthEnd = monthStart + 12;
+      const slice = rows.slice(monthStart, monthEnd);
+      if (!slice.length) break;
+
+      // Check if still within deduction eligibility period
+      const inDeductionPeriod = (monthEnd <= dedMonths);
+      if (!inDeductionPeriod) {
+        // No benefit after deduction period ends
+        slice.forEach((r) => {
+          r.taxBenefit = 0;
+          r.netOutflow = r.grossOutflow;
+        });
+        continue;
+      }
+
+      // Deductible amount = interest paid + canon - eigenwoningforfait
+      const yearInterest = interestByYear[y] || 0;
+      const yearCanon = canonMonthly * 12;
+      const deductibleAmount = Math.max(0, yearInterest + yearCanon - forfaitAnnual);
+
+      // Tax benefit = deductible × min(marginal_rate, cap)
+      let yearBenefit = deductibleAmount * effectiveDeductionRate;
+
+      // Cap benefit at tax payable (no negative tax)
+      yearBenefit = Math.min(yearBenefit, baseTax);
+
+      const monthBenefit = yearBenefit / 12;
+
+      slice.forEach((r) => {
+        r.taxBenefit = monthBenefit;
+        r.netOutflow = r.grossOutflow - r.taxBenefit;
+        // Recalculate real value after tax benefit is applied
+        const monthlyInflation = Math.pow(1 + (inflationRate || 0), 1/12) - 1;
+        const discountFactor = Math.pow(1 + monthlyInflation, r.m - 1);
+        r.netOutflowReal = r.netOutflow / discountFactor;
+      });
+    }
+
+    // Yearly aggregates (1..termYears)
+    const years = [];
+    for (let y = 1; y <= termYears; y++) {
+      const startIdx = (y - 1) * 12;
+      const slice = rows.slice(startIdx, startIdx + 12);
+      if (!slice.length) break;
+
+      const begBal = slice[0].balBeg;
+      const endBal = slice[slice.length - 1].balEnd;
+
+      const sum = (k) => slice.reduce((a, r) => a + r[k], 0);
+
+      years.push({
+        year: y,
+        begBal,
+        endBal,
+        payment: sum("payment"),
+        interest: sum("interest"),
+        principal: sum("principal"),
+        taxBenefit: sum("taxBenefit"),
+        netOutflow: sum("netOutflow")
+      });
+    }
+
+    return { rows, years };
+  }
+
+  // Chart.js instances
+  let smallChart = null;
+  let largeChart = null;
+  let inflationChart = null;
+
+  function buildChartConfig(data, stayMonths, dedMonths, options = {}) {
+    const labels = data.map(d => d.m);
+    const valueKey = options.valueKey || 'netOutflow';
+    const values = data.map(d => d[valueKey]);
+    const lineColor = options.lineColor || 'rgba(110,231,255,0.95)';
+    const fillColor = options.fillColor || 'rgba(110,231,255,0.1)';
+    const labelText = options.label || 'Net Monthly Outflow (€)';
+
+    // Find deduction end month
+    const dedEndMonth = dedMonths || 0;
+
+    return {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: labelText,
+          data: values,
+          borderColor: lineColor,
+          backgroundColor: fillColor,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: 'rgba(110,231,255,1)',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          fill: true,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(26,29,38,0.95)',
+            titleColor: '#94a3b8',
+            bodyColor: '#f8fafc',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              title: (items) => `Month ${items[0].label}`,
+              label: (item) => `€${item.raw.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+            }
+          },
+          annotation: {
+            annotations: {
+              stayLine: {
+                type: 'line',
+                xMin: stayMonths,
+                xMax: stayMonths,
+                borderColor: 'rgba(255,255,255,0.3)',
+                borderWidth: 2,
+                borderDash: [6, 6],
+                label: {
+                  display: true,
+                  content: 'Stay ends',
+                  position: 'start',
+                  backgroundColor: 'rgba(26,29,38,0.9)',
+                  color: '#94a3b8',
+                  font: { size: 11 }
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Month', color: '#94a3b8' },
+            ticks: {
+              color: '#94a3b8',
+              callback: (val) => {
+                if (val % 12 === 0) return `Y${val / 12}`;
+                return '';
+              },
+              maxTicksLimit: 12
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          },
+          y: {
+            title: { display: true, text: 'Net Outflow (€)', color: '#94a3b8' },
+            ticks: {
+              color: '#94a3b8',
+              callback: (val) => '€' + val.toLocaleString()
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
+        }
+      }
+    };
+  }
+
+  function renderSmallChart(data, stayMonths, dedMonths) {
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    if (smallChart) smallChart.destroy();
+    smallChart = new Chart(ctx, buildChartConfig(data, stayMonths, dedMonths));
+  }
+
+  function renderLargeChart(data, stayMonths, dedMonths) {
+    const canvas = document.getElementById('chartLarge');
+    const ctx = canvas.getContext('2d');
+    if (largeChart) largeChart.destroy();
+    largeChart = new Chart(ctx, buildChartConfig(data, stayMonths, dedMonths));
+  }
+
+  function renderInflationChart(data, stayMonths) {
+    const canvas = document.getElementById('chartInflation');
+    const ctx = canvas.getContext('2d');
+    if (inflationChart) inflationChart.destroy();
+    inflationChart = new Chart(ctx, buildChartConfig(data, stayMonths, 0, {
+      valueKey: 'netOutflowReal',
+      lineColor: 'rgba(16,185,129,0.95)',
+      fillColor: 'rgba(16,185,129,0.1)',
+      label: 'Inflation-Adjusted Outflow (€)'
+    }));
+  }
+
+  let inflationLargeChart = null;
+
+  function renderInflationLargeChart(data, stayMonths) {
+    const canvas = document.getElementById('chartInflationLarge');
+    const ctx = canvas.getContext('2d');
+    if (inflationLargeChart) inflationLargeChart.destroy();
+    inflationLargeChart = new Chart(ctx, buildChartConfig(data, stayMonths, 0, {
+      valueKey: 'netOutflowReal',
+      lineColor: 'rgba(16,185,129,0.95)',
+      fillColor: 'rgba(16,185,129,0.1)',
+      label: 'Inflation-Adjusted Outflow (€)'
+    }));
+  }
+
+  // ---------- UI wiring ----------
+  const el = (id) => document.getElementById(id);
+  const inputs = [
+    "principal","rate","term","mortType","dedYears","woz","forfaitRate","income","stayYears","inflation","vve","ozb","ins","maint","utils","canon"
+  ].map(el);
+
+  function defaultOtherCostsFromPrincipal(principal) {
+    const p = Math.max(0, Number(principal) || 0);
+    const ozbAnnualRate = 0.001;
+    const insAnnualRate = 0.001;
+    const maintAnnualRate = 0.01;
+
+    return {
+      ozb: Math.round((p * ozbAnnualRate) / 12),
+      ins: Math.round((p * insAnnualRate) / 12),
+      maint: Math.round((p * maintAnnualRate) / 12),
+    };
+  }
+
+  const otherAuto = {
+    ozb: true,
+    ins: true,
+    maint: true,
+  };
+
+  function applyOtherDefaultsFromPrincipal({ force = false } = {}) {
+    const principal = Math.max(0, Number(el("principal").value) || 0);
+    const d = defaultOtherCostsFromPrincipal(principal);
+
+    if (force || otherAuto.ozb) el("ozb").value = d.ozb;
+    if (force || otherAuto.ins) el("ins").value = d.ins;
+    if (force || otherAuto.maint) el("maint").value = d.maint;
+  }
+
+  function getParams() {
+    const principal = Math.max(0, Number(el("principal").value));
+    const rateAnnual = Math.max(0, Number(el("rate").value));
+    const termYears = clamp(Number(el("term").value), 1, 40);
+    const type = el("mortType").value;
+
+    const dedYears = clamp(Number(el("dedYears").value), 0, termYears);
+    const wozValue = Math.max(0, Number(el("woz").value));
+    const forfaitRateAnnual = clamp(Number(el("forfaitRate").value), 0, 5);
+    const stayYears = clamp(Number(el("stayYears").value), 1, termYears);
+
+    const otherMonthly =
+      Math.max(0, Number(el("vve").value)) +
+      Math.max(0, Number(el("ozb").value)) +
+      Math.max(0, Number(el("ins").value)) +
+      Math.max(0, Number(el("maint").value)) +
+      Math.max(0, Number(el("utils").value));
+
+    const canonMonthly = Math.max(0, Number(el("canon").value));
+
+    const incomeAnnual = Math.max(0, Number(el("income").value));
+    const inflationRate = clamp(Number(el("inflation").value), 0, 20) / 100;
+
+    return { principal, rateAnnual, termYears, type, dedYears, incomeAnnual, wozValue, forfaitRateAnnual, stayYears, inflationRate, otherMonthly, canonMonthly };
+  }
+
+  function render() {
+    const p = getParams();
+    const schedule = buildSchedule(p);
+
+    // Month-1 KPIs
+    const m1 = schedule.rows[0];
+    el("kpiPay").textContent = fmtEUR2(m1.payment);
+    el("kpiGross").textContent = fmtEUR2(m1.grossOutflow);
+    el("kpiTax").textContent = fmtEUR2(m1.taxBenefit);
+    el("kpiNet").textContent = fmtEUR2(m1.netOutflow);
+
+    // Stay summary
+    const stayMonths = Math.round(p.stayYears * 12);
+    const staySlice = schedule.rows.slice(0, stayMonths);
+    const sum = (k) => staySlice.reduce((a,r) => a + r[k], 0);
+    const outflow = sum("netOutflow");
+    const interest = sum("interest");
+    const equity = staySlice.length ? (staySlice[0].balBeg - staySlice[staySlice.length-1].balEnd) : 0;
+
+    el("stayOutflow").textContent = fmtEUR(outflow);
+    el("stayEquity").textContent = fmtEUR(equity);
+    el("stayInterest").textContent = fmtEUR(interest);
+
+    // Chart
+    const dedMonths = Math.round(p.dedYears * 12);
+    renderSmallChart(schedule.rows, stayMonths, dedMonths);
+    renderInflationChart(schedule.rows, stayMonths);
+    lastChartData = schedule.rows;
+    lastStayMonths = stayMonths;
+    lastDedMonths = dedMonths;
+    if (chartModalIsOpen()) {
+      renderLargeChart(schedule.rows, stayMonths, dedMonths);
+    }
+
+    // Yearly table
+    const body = el("yearlyBody");
+    body.innerHTML = "";
+    schedule.years.forEach(y => {
+      const tr = document.createElement("tr");
+      if (y.year === p.stayYears) tr.classList.add("stay");
+      tr.innerHTML = `
+        <td class="mono">${y.year}</td>
+        <td class="mono">${fmtEUR(y.begBal)}</td>
+        <td class="mono">${fmtEUR(y.endBal)}</td>
+        <td class="mono">${fmtEUR(y.payment)}</td>
+        <td class="mono">${fmtEUR(y.interest)}</td>
+        <td class="mono">${fmtEUR(y.principal)}</td>
+        <td class="mono">${fmtEUR(y.taxBenefit)}</td>
+        <td class="mono">${fmtEUR(y.netOutflow)}</td>
+      `;
+      body.appendChild(tr);
+    });
+  }
+
+  el("calcBtn").addEventListener("click", render);
+  el("resetBtn").addEventListener("click", () => {
+    el("principal").value = 430000;
+    el("rate").value = 4;
+    el("term").value = 30;
+    el("mortType").value = "annuity";
+    el("dedYears").value = 5;
+    el("woz").value = 430000;
+    el("forfaitRate").value = 0.35;
+    el("income").value = 100000;
+    el("stayYears").value = 10;
+    el("inflation").value = 2;
+    el("vve").value = 200;
+    el("utils").value = 200;
+    el("canon").value = 0;
+    otherAuto.ozb = true;
+    otherAuto.ins = true;
+    otherAuto.maint = true;
+    applyOtherDefaultsFromPrincipal({ force: true });
+    render();
+  });
+
+  // live recalculation on change
+  inputs.forEach(i => i.addEventListener("input", () => render()));
+  inputs.forEach(i => i.addEventListener("change", () => render()));
+
+  ["ozb","ins","maint"].forEach((id) => {
+    el(id).addEventListener("input", () => {
+      otherAuto[id] = false;
+    });
+  });
+
+  el("principal").addEventListener("input", () => {
+    applyOtherDefaultsFromPrincipal();
+  });
+
+  el("principal").addEventListener("input", () => {
+    el("woz").value = el("principal").value;
+  });
+
+  applyOtherDefaultsFromPrincipal({ force: true });
+
+  // --- Chart modal (click to enlarge) ---
+  const chartModal = el("chartModal");
+  const chartModalClose = el("chartModalClose");
+  const chartLarge = el("chartLarge");
+
+  let lastChartData = null;
+  let lastStayMonths = 0;
+  let lastDedMonths = 0;
+
+  function chartModalIsOpen() {
+    return chartModal.classList.contains("open");
+  }
+
+  function setBodyScrollLocked(locked) {
+    document.body.style.overflow = locked ? "hidden" : "";
+  }
+
+  function openChartModal() {
+    chartModal.classList.add("open");
+    setBodyScrollLocked(true);
+    if (lastChartData) {
+      setTimeout(() => renderLargeChart(lastChartData, lastStayMonths, lastDedMonths), 50);
+    }
+  }
+
+  function closeChartModal() {
+    chartModal.classList.remove("open");
+    setBodyScrollLocked(false);
+  }
+
+  // --- Inflation chart modal ---
+  const inflationModal = el("inflationModal");
+  const inflationModalClose = el("inflationModalClose");
+
+  function inflationModalIsOpen() {
+    return inflationModal.classList.contains("open");
+  }
+
+  function openInflationModal() {
+    inflationModal.classList.add("open");
+    setBodyScrollLocked(true);
+    if (lastChartData) {
+      setTimeout(() => renderInflationLargeChart(lastChartData, lastStayMonths), 50);
+    }
+  }
+
+  function closeInflationModal() {
+    inflationModal.classList.remove("open");
+    setBodyScrollLocked(false);
+  }
+
+  el("chartInflation").addEventListener("click", openInflationModal);
+  inflationModalClose.addEventListener("click", closeInflationModal);
+  inflationModal.addEventListener("click", (e) => {
+    if (e.target === inflationModal) closeInflationModal();
+  });
+
+  el("chart").addEventListener("click", openChartModal);
+  chartModalClose.addEventListener("click", closeChartModal);
+  chartModal.addEventListener("click", (e) => {
+    if (e.target === chartModal) closeChartModal();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (chartModalIsOpen()) closeChartModal();
+      if (inflationModalIsOpen()) closeInflationModal();
+    }
+  });
+  window.addEventListener("resize", () => {
+    if (chartModalIsOpen() && lastChartData) renderLargeChart(lastChartData, lastStayMonths, lastDedMonths);
+    if (inflationModalIsOpen() && lastChartData) renderInflationLargeChart(lastChartData, lastStayMonths);
+  });
+
+  // Chart.js handles tooltips natively now
+
+  render();
+</script>
+</body>
+</html>
