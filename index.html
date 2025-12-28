@@ -417,6 +417,8 @@
       <h2 style="margin-top:14px;">Rent Comparison</h2>
       <label>Equivalent monthly rent (€)</label>
       <input id="rent" type="number" min="0" step="50" value="2000" />
+      <label>Annual rent increase (% / year)</label>
+      <input id="rentIncrease" type="number" min="0" max="20" step="0.1" value="2" />
 
       <div class="btns">
         <button id="calcBtn">Recalculate</button>
@@ -471,6 +473,11 @@
           <div style="height: 160px;"><canvas id="chartInflation" class="chartClickable" aria-label="Inflation-adjusted monthly cost chart"></canvas></div>
           <p class="note" style="margin:8px 0 0;">
             Shows net outflow in <span class="pill">today's euros</span> (discounted by inflation).
+          </p>
+          <h2 style="margin-top:16px;">Buy vs Rent comparison</h2>
+          <div style="height: 160px;"><canvas id="chartRent" class="chartClickable" aria-label="Buy vs Rent comparison chart"></canvas></div>
+          <p class="note" style="margin:8px 0 0;">
+            Compares <span class="pill">net outflow</span> (blue) vs <span class="pill">rent</span> (orange) over time.
           </p>
         </div>
 
@@ -551,6 +558,18 @@
     </div>
     <div class="modalBody" style="position:relative;">
       <canvas id="chartInflationLarge" aria-label="Inflation-adjusted monthly cost chart (large)"></canvas>
+    </div>
+  </div>
+</div>
+
+<div id="rentModal" class="modalOverlay" role="dialog" aria-modal="true" aria-label="Enlarged buy vs rent chart">
+  <div class="modalCard">
+    <div class="modalHeader">
+      <div class="title">Buy vs Rent comparison</div>
+      <button id="rentModalClose" class="modalClose" type="button">Close</button>
+    </div>
+    <div class="modalBody" style="position:relative;">
+      <canvas id="chartRentLarge" aria-label="Buy vs Rent comparison chart (large)"></canvas>
     </div>
   </div>
 </div>
@@ -893,10 +912,114 @@
     }));
   }
 
+  let rentChart = null;
+  let rentLargeChart = null;
+
+  function buildRentChartConfig(data, rentData, stayMonths) {
+    const labels = data.map(d => d.m);
+    const buyValues = data.map(d => d.netOutflow);
+    const rentValues = rentData;
+
+    return {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Net Monthly Outflow (€)',
+            data: buyValues,
+            borderColor: 'rgba(110,231,255,0.95)',
+            backgroundColor: 'rgba(110,231,255,0.1)',
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            fill: false,
+            tension: 0.1
+          },
+          {
+            label: 'Monthly Rent (€)',
+            data: rentValues,
+            borderColor: 'rgba(251,146,60,0.95)',
+            backgroundColor: 'rgba(251,146,60,0.1)',
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            fill: false,
+            tension: 0.1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: { 
+            display: true,
+            labels: { color: '#94a3b8', font: { size: 11 } }
+          },
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(26,29,38,0.95)',
+            titleColor: '#94a3b8',
+            bodyColor: '#f8fafc',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              title: (items) => `Month ${items[0].label}`,
+              label: (item) => `${item.dataset.label}: €${item.raw.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Month', color: '#94a3b8' },
+            ticks: {
+              color: '#94a3b8',
+              callback: (val) => {
+                if (val % 12 === 0) return `Y${val / 12}`;
+                return '';
+              },
+              maxTicksLimit: 12
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          },
+          y: {
+            title: { display: true, text: 'Monthly Cost (€)', color: '#94a3b8' },
+            ticks: {
+              color: '#94a3b8',
+              callback: (val) => '€' + val.toLocaleString()
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
+        }
+      }
+    };
+  }
+
+  function renderRentChart(data, rentData, stayMonths) {
+    const canvas = document.getElementById('chartRent');
+    const ctx = canvas.getContext('2d');
+    if (rentChart) rentChart.destroy();
+    rentChart = new Chart(ctx, buildRentChartConfig(data, rentData, stayMonths));
+  }
+
+  function renderRentLargeChart(data, rentData, stayMonths) {
+    const canvas = document.getElementById('chartRentLarge');
+    const ctx = canvas.getContext('2d');
+    if (rentLargeChart) rentLargeChart.destroy();
+    rentLargeChart = new Chart(ctx, buildRentChartConfig(data, rentData, stayMonths));
+  }
+
   // ---------- UI wiring ----------
   const el = (id) => document.getElementById(id);
   const inputs = [
-    "principal","rate","term","mortType","dedYears","woz","forfaitRate","income","stayYears","inflation","vve","ozb","ins","maint","utils","canon","rent"
+    "principal","rate","term","mortType","dedYears","woz","forfaitRate","income","stayYears","inflation","vve","ozb","ins","maint","utils","canon","rent","rentIncrease"
   ].map(el);
 
   function defaultOtherCostsFromPrincipal(principal) {
@@ -947,11 +1070,12 @@
 
     const canonMonthly = Math.max(0, Number(el("canon").value));
     const rentMonthly = Math.max(0, Number(el("rent").value));
+    const rentIncreaseRate = clamp(Number(el("rentIncrease").value), 0, 20) / 100;
 
     const incomeAnnual = Math.max(0, Number(el("income").value));
     const inflationRate = clamp(Number(el("inflation").value), 0, 20) / 100;
 
-    return { principal, rateAnnual, termYears, type, dedYears, incomeAnnual, wozValue, forfaitRateAnnual, stayYears, inflationRate, otherMonthly, canonMonthly, rentMonthly };
+    return { principal, rateAnnual, termYears, type, dedYears, incomeAnnual, wozValue, forfaitRateAnnual, stayYears, inflationRate, otherMonthly, canonMonthly, rentMonthly, rentIncreaseRate };
   }
 
   function render() {
@@ -983,8 +1107,20 @@
     el("stayEquity").textContent = fmtEUR(equity);
     el("stayInterest").textContent = fmtEUR(interest);
 
-    // Rent comparison
-    const rentTotal = p.rentMonthly * stayMonths;
+    // Generate rent data with annual increases
+    const termMonths = Math.round(p.termYears * 12);
+    const rentData = [];
+    for (let m = 1; m <= termMonths; m++) {
+      const yearIdx = Math.floor((m - 1) / 12);
+      const rentAtMonth = p.rentMonthly * Math.pow(1 + p.rentIncreaseRate, yearIdx);
+      rentData.push(rentAtMonth);
+    }
+
+    // Rent comparison (with increases)
+    let rentTotal = 0;
+    for (let m = 0; m < stayMonths && m < rentData.length; m++) {
+      rentTotal += rentData[m];
+    }
     const trueBuyCost = outflow - equity; // Net outflow minus equity built
     const buyVsRent = trueBuyCost - rentTotal;
     
@@ -993,15 +1129,22 @@
     el("stayBuyVsRent").className = "v mono " + (buyVsRent > 0 ? "bad" : "good");
     el("stayBuyVsRentLabel").textContent = buyVsRent > 0 ? "Buying costs more" : "Buying saves money";
 
+    // Store rent data for modal
+    lastRentData = rentData;
+
     // Chart
     const dedMonths = Math.round(p.dedYears * 12);
     renderSmallChart(schedule.rows, stayMonths, dedMonths);
     renderInflationChart(schedule.rows, stayMonths);
+    renderRentChart(schedule.rows, rentData, stayMonths);
     lastChartData = schedule.rows;
     lastStayMonths = stayMonths;
     lastDedMonths = dedMonths;
     if (chartModalIsOpen()) {
       renderLargeChart(schedule.rows, stayMonths, dedMonths);
+    }
+    if (rentModalIsOpen()) {
+      renderRentLargeChart(schedule.rows, rentData, stayMonths);
     }
 
     // Yearly table
@@ -1010,6 +1153,13 @@
     schedule.years.forEach(y => {
       const tr = document.createElement("tr");
       if (y.year === p.stayYears) tr.classList.add("stay");
+      // Calculate yearly rent with increases (sum of 12 months for that year)
+      const yearStartMonth = (y.year - 1) * 12;
+      let yearlyRent = 0;
+      for (let m = 0; m < 12 && (yearStartMonth + m) < rentData.length; m++) {
+        yearlyRent += rentData[yearStartMonth + m];
+      }
+      const buyVsRentYear = (y.netOutflow - y.principal) - yearlyRent;
       tr.innerHTML = `
         <td class="mono">${y.year}</td>
         <td class="mono">${fmtEUR(y.begBal)}</td>
@@ -1019,8 +1169,8 @@
         <td class="mono">${fmtEUR(y.principal)}</td>
         <td class="mono">${fmtEUR(y.taxBenefit)}</td>
         <td class="mono">${fmtEUR(y.netOutflow)}</td>
-        <td class="mono">${fmtEUR(p.rentMonthly * 12)}</td>
-        <td class="mono ${(y.netOutflow - y.principal) - (p.rentMonthly * 12) > 0 ? 'bad' : 'good'}">${((y.netOutflow - y.principal) - (p.rentMonthly * 12) >= 0 ? '+' : '') + fmtEUR((y.netOutflow - y.principal) - (p.rentMonthly * 12))}</td>
+        <td class="mono">${fmtEUR(yearlyRent)}</td>
+        <td class="mono ${buyVsRentYear > 0 ? 'bad' : 'good'}">${(buyVsRentYear >= 0 ? '+' : '') + fmtEUR(buyVsRentYear)}</td>
       `;
       body.appendChild(tr);
     });
@@ -1042,6 +1192,7 @@
     el("utils").value = 200;
     el("canon").value = 0;
     el("rent").value = 2000;
+    el("rentIncrease").value = 2;
     otherAuto.ozb = true;
     otherAuto.ins = true;
     otherAuto.maint = true;
@@ -1077,6 +1228,7 @@
   let lastChartData = null;
   let lastStayMonths = 0;
   let lastDedMonths = 0;
+  let lastRentData = [];
 
   function chartModalIsOpen() {
     return chartModal.classList.contains("open");
@@ -1126,6 +1278,33 @@
     if (e.target === inflationModal) closeInflationModal();
   });
 
+  // --- Rent chart modal ---
+  const rentModal = el("rentModal");
+  const rentModalClose = el("rentModalClose");
+
+  function rentModalIsOpen() {
+    return rentModal.classList.contains("open");
+  }
+
+  function openRentModal() {
+    rentModal.classList.add("open");
+    setBodyScrollLocked(true);
+    if (lastChartData && lastRentData.length) {
+      setTimeout(() => renderRentLargeChart(lastChartData, lastRentData, lastStayMonths), 50);
+    }
+  }
+
+  function closeRentModal() {
+    rentModal.classList.remove("open");
+    setBodyScrollLocked(false);
+  }
+
+  el("chartRent").addEventListener("click", openRentModal);
+  rentModalClose.addEventListener("click", closeRentModal);
+  rentModal.addEventListener("click", (e) => {
+    if (e.target === rentModal) closeRentModal();
+  });
+
   el("chart").addEventListener("click", openChartModal);
   chartModalClose.addEventListener("click", closeChartModal);
   chartModal.addEventListener("click", (e) => {
@@ -1135,11 +1314,13 @@
     if (e.key === "Escape") {
       if (chartModalIsOpen()) closeChartModal();
       if (inflationModalIsOpen()) closeInflationModal();
+      if (rentModalIsOpen()) closeRentModal();
     }
   });
   window.addEventListener("resize", () => {
     if (chartModalIsOpen() && lastChartData) renderLargeChart(lastChartData, lastStayMonths, lastDedMonths);
     if (inflationModalIsOpen() && lastChartData) renderInflationLargeChart(lastChartData, lastStayMonths);
+    if (rentModalIsOpen() && lastChartData && lastRentData.length) renderRentLargeChart(lastChartData, lastRentData, lastStayMonths);
   });
 
   // Chart.js handles tooltips natively now
