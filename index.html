@@ -100,7 +100,7 @@
     button:active {
       transform: translateY(0);
     }
-    .kpiGrid { display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .kpiGrid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
     @media (max-width: 1024px){ .kpiGrid{ grid-template-columns: repeat(2, 1fr); } }
     .kpi { 
       background: linear-gradient(135deg, rgba(59,130,246,.08) 0%, rgba(59,130,246,.04) 100%); 
@@ -202,6 +202,7 @@
     .kpi:nth-child(2) { animation-delay: 0.15s; }
     .kpi:nth-child(3) { animation-delay: 0.2s; }
     .kpi:nth-child(4) { animation-delay: 0.25s; }
+    .kpi:nth-child(5) { animation-delay: 0.3s; }
     
     /* Smooth scroll for table */
     .scroll-container {
@@ -413,6 +414,10 @@
       <label>Leasehold / canon (€ / month)</label>
       <input id="canon" type="number" min="0" step="1" value="0" />
 
+      <h2 style="margin-top:14px;">Rent Comparison</h2>
+      <label>Equivalent monthly rent (€)</label>
+      <input id="rent" type="number" min="0" step="50" value="2000" />
+
       <div class="btns">
         <button id="calcBtn">Recalculate</button>
         <button class="secondary" id="resetBtn">Reset defaults</button>
@@ -448,6 +453,11 @@
           <div class="v mono" id="kpiNet">—</div>
           <div class="s">Gross − tax benefit</div>
         </div>
+        <div class="kpi">
+          <div class="t">Rent comparison (month 1)</div>
+          <div class="v mono" id="kpiRentDiff">—</div>
+          <div class="s" id="kpiRentLabel">vs renting</div>
+        </div>
       </div>
 
       <div class="split">
@@ -481,8 +491,18 @@
             <div class="v mono" id="stayInterest">—</div>
             <div class="s">Interest portion only</div>
           </div>
+          <div class="kpi" style="margin-top:10px;">
+            <div class="t">Total rent cost (same period)</div>
+            <div class="v mono" id="stayRentTotal">—</div>
+            <div class="s">Rent × months stayed</div>
+          </div>
+          <div class="kpi" style="margin-top:10px;">
+            <div class="t">Buy vs Rent (net cost difference)</div>
+            <div class="v mono" id="stayBuyVsRent">—</div>
+            <div class="s" id="stayBuyVsRentLabel">Outflow − equity − rent</div>
+          </div>
           <p class="note" style="margin-top:10px;">
-            Equity built is not “spent”; it becomes value in the property (ignoring price changes).
+            Equity built is not "spent"; it becomes value in the property (ignoring price changes). Buy vs Rent shows true cost difference: (outflow − equity built) − rent.
           </p>
         </div>
       </div>
@@ -500,6 +520,8 @@
               <th>Principal</th>
               <th>Tax benefit</th>
               <th>Net outflow</th>
+              <th>Rent</th>
+              <th>Buy vs Rent</th>
             </tr>
           </thead>
           <tbody id="yearlyBody"></tbody>
@@ -874,7 +896,7 @@
   // ---------- UI wiring ----------
   const el = (id) => document.getElementById(id);
   const inputs = [
-    "principal","rate","term","mortType","dedYears","woz","forfaitRate","income","stayYears","inflation","vve","ozb","ins","maint","utils","canon"
+    "principal","rate","term","mortType","dedYears","woz","forfaitRate","income","stayYears","inflation","vve","ozb","ins","maint","utils","canon","rent"
   ].map(el);
 
   function defaultOtherCostsFromPrincipal(principal) {
@@ -924,11 +946,12 @@
       Math.max(0, Number(el("utils").value));
 
     const canonMonthly = Math.max(0, Number(el("canon").value));
+    const rentMonthly = Math.max(0, Number(el("rent").value));
 
     const incomeAnnual = Math.max(0, Number(el("income").value));
     const inflationRate = clamp(Number(el("inflation").value), 0, 20) / 100;
 
-    return { principal, rateAnnual, termYears, type, dedYears, incomeAnnual, wozValue, forfaitRateAnnual, stayYears, inflationRate, otherMonthly, canonMonthly };
+    return { principal, rateAnnual, termYears, type, dedYears, incomeAnnual, wozValue, forfaitRateAnnual, stayYears, inflationRate, otherMonthly, canonMonthly, rentMonthly };
   }
 
   function render() {
@@ -941,6 +964,12 @@
     el("kpiGross").textContent = fmtEUR2(m1.grossOutflow);
     el("kpiTax").textContent = fmtEUR2(m1.taxBenefit);
     el("kpiNet").textContent = fmtEUR2(m1.netOutflow);
+    
+    // Rent comparison KPI
+    const rentDiff = m1.netOutflow - p.rentMonthly;
+    el("kpiRentDiff").textContent = (rentDiff >= 0 ? "+" : "") + fmtEUR2(rentDiff);
+    el("kpiRentDiff").className = "v mono " + (rentDiff > 0 ? "bad" : "good");
+    el("kpiRentLabel").textContent = rentDiff > 0 ? "More than rent" : "Less than rent";
 
     // Stay summary
     const stayMonths = Math.round(p.stayYears * 12);
@@ -953,6 +982,16 @@
     el("stayOutflow").textContent = fmtEUR(outflow);
     el("stayEquity").textContent = fmtEUR(equity);
     el("stayInterest").textContent = fmtEUR(interest);
+
+    // Rent comparison
+    const rentTotal = p.rentMonthly * stayMonths;
+    const trueBuyCost = outflow - equity; // Net outflow minus equity built
+    const buyVsRent = trueBuyCost - rentTotal;
+    
+    el("stayRentTotal").textContent = fmtEUR(rentTotal);
+    el("stayBuyVsRent").textContent = (buyVsRent >= 0 ? "+" : "") + fmtEUR(buyVsRent);
+    el("stayBuyVsRent").className = "v mono " + (buyVsRent > 0 ? "bad" : "good");
+    el("stayBuyVsRentLabel").textContent = buyVsRent > 0 ? "Buying costs more" : "Buying saves money";
 
     // Chart
     const dedMonths = Math.round(p.dedYears * 12);
@@ -980,6 +1019,8 @@
         <td class="mono">${fmtEUR(y.principal)}</td>
         <td class="mono">${fmtEUR(y.taxBenefit)}</td>
         <td class="mono">${fmtEUR(y.netOutflow)}</td>
+        <td class="mono">${fmtEUR(p.rentMonthly * 12)}</td>
+        <td class="mono ${(y.netOutflow - y.principal) - (p.rentMonthly * 12) > 0 ? 'bad' : 'good'}">${((y.netOutflow - y.principal) - (p.rentMonthly * 12) >= 0 ? '+' : '') + fmtEUR((y.netOutflow - y.principal) - (p.rentMonthly * 12))}</td>
       `;
       body.appendChild(tr);
     });
@@ -1000,6 +1041,7 @@
     el("vve").value = 200;
     el("utils").value = 200;
     el("canon").value = 0;
+    el("rent").value = 2000;
     otherAuto.ozb = true;
     otherAuto.ins = true;
     otherAuto.maint = true;
